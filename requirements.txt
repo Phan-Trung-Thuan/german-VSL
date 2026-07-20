@@ -1,0 +1,36 @@
+# Combined pipeline dependencies
+# Install with: pip install -r requirements.txt
+#
+# Then install PyTorch (CPU):
+#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+# Or PyTorch (CUDA 12.6):
+#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
+#
+# Then install NeMo:
+#   pip install "nemo_toolkit[asr]"
+
+# ── Web server ──────────────────────────────────────────────────────
+fastapi
+uvicorn[standard]
+python-multipart
+
+# ── Audio processing ─────────────────────────────────────────────────
+numpy
+soundfile
+librosa
+
+# ── ASR prerequisites ────────────────────────────────────────────────
+Cython
+packaging
+
+# ── Sign language / gloss ────────────────────────────────────────────
+pose-format
+spoken-to-signed
+
+# ── NeMo ASR (large - installed separately, see notes above) ─────────
+# nemo_toolkit[asr]
+
+# ── PyTorch (installed separately, see notes above) ──────────────────
+# torch
+# torchvision
+# torchaudio

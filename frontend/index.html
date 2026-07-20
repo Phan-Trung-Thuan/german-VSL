@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DE Sign Pipeline — German Speech to Sign Language</title>
+  <meta name="description" content="German speech → German text → German Sign Language gloss → animated GIF. Powered by NVIDIA Canary ASR and spoken-to-signed." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="bg-grid"></div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">
+      <span class="logo-icon">🤟</span>
+      <span class="logo-text">DE <span class="logo-arrow">→</span> Sign</span>
+    </div>
+    <div id="statusBar" class="status-bar">
+      <span id="apiStatus" class="badge badge-checking">Connecting…</span>
+      <span id="asrBadge" class="badge badge-muted">ASR —</span>
+      <span id="lexiconBadge" class="badge badge-muted">Lexicon —</span>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Pipeline steps indicator -->
+    <div class="pipeline-steps">
+      <div class="step" id="step1" data-step="1">
+        <div class="step-num">1</div>
+        <div class="step-label">Record German<br>Speech</div>
+      </div>
+      <div class="step-arrow">→</div>
+      <div class="step" id="step2" data-step="2">
+        <div class="step-num">2</div>
+        <div class="step-label">German Text<br>(Canary ASR)</div>
+      </div>
+      <div class="step-arrow">→</div>
+      <div class="step" id="step3" data-step="3">
+        <div class="step-num">3</div>
+        <div class="step-label">Sign Language<br>Gloss</div>
+      </div>
+      <div class="step-arrow">→</div>
+      <div class="step" id="step4" data-step="4">
+        <div class="step-num">4</div>
+        <div class="step-label">Animated<br>GIF</div>
+      </div>
+    </div>
+
+    <!-- Cards layout -->
+    <div class="cards-grid">
+
+      <!-- Card 1: Record -->
+      <div class="card" id="card-record">
+        <div class="card-header">
+          <span class="card-icon">🎙️</span>
+          <h2 class="card-title">German Speech Input</h2>
+        </div>
+        <div class="card-body">
+          <div class="hint-box">
+            <strong>Try saying:</strong> „Guten Morgen, ich komme aus Deutschland."
+          </div>
+
+          <div class="record-controls">
+            <button id="startBtn" class="btn btn-primary" title="Start recording">
+              <span class="btn-icon">▶</span> Start Recording
+            </button>
+            <button id="stopBtn" class="btn btn-danger" disabled title="Stop recording">
+              <span class="btn-icon">■</span> Stop
+            </button>
+            <span id="timerBadge" class="timer-badge">00:00</span>
+          </div>
+
+          <div class="upload-area">
+            <label class="upload-label">Or upload an audio file</label>
+            <div class="upload-drop" id="dropZone">
+              <span>Drag & drop or <label for="fileInput" class="upload-link">browse</label></span>
+              <input id="fileInput" type="file" accept="audio/*" hidden />
+            </div>
+          </div>
+
+          <div id="audioWrap" class="audio-wrap hidden">
+            <audio id="audioPlayer" controls></audio>
+          </div>
+
+          <div class="run-controls">
+            <button id="runBtn" class="btn btn-accent" disabled>
+              <span class="btn-icon">⚡</span> Run Full Pipeline
+            </button>
+            <button id="clearBtn" class="btn btn-ghost">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: ASR result -->
+      <div class="card" id="card-asr">
+        <div class="card-header">
+          <span class="card-icon">📝</span>
+          <h2 class="card-title">German Text (ASR)</h2>
+          <span id="asrSpinner" class="spinner hidden"></span>
+        </div>
+        <div class="card-body">
+          <textarea id="transcriptBox"
+                    placeholder="German transcript will appear here…"
+                    rows="4"
+                    spellcheck="false"></textarea>
+          <div id="asrMeta" class="meta-line"></div>
+
+          <!-- Manual gloss trigger (after editing transcript) -->
+          <button id="glossBtn" class="btn btn-sm btn-secondary" disabled>
+            Re-run Gloss from text ↓
+          </button>
+        </div>
+      </div>
+
+      <!-- Card 3: Gloss -->
+      <div class="card" id="card-gloss">
+        <div class="card-header">
+          <span class="card-icon">🧩</span>
+          <h2 class="card-title">Sign Language Gloss</h2>
+          <span id="glossSpinner" class="spinner hidden"></span>
+        </div>
+        <div class="card-body">
+          <div id="glossTokens" class="gloss-tokens">
+            <span class="gloss-empty">Gloss tokens will appear here…</span>
+          </div>
+          <div id="glossRaw" class="gloss-raw"></div>
+
+          <div class="settings-row">
+            <label class="settings-label">Glosser</label>
+            <select id="glosserSelect" class="select-input">
+              <option value="simple" selected>simple (fastest)</option>
+              <option value="spacylemma">spacylemma (better)</option>
+              <option value="rules">rules</option>
+            </select>
+
+            <label class="settings-label">Sign Language</label>
+            <select id="signedLangSelect" class="select-input">
+              <option value="sgg" selected>SGG (Swiss German SL)</option>
+              <option value="gsg">GSG (German SL / DGS)</option>
+              <option value="bfi">BFI (British SL)</option>
+              <option value="ase">ASE (American SL)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 4: GIF -->
+      <div class="card card-wide" id="card-gif">
+        <div class="card-header">
+          <span class="card-icon">🎬</span>
+          <h2 class="card-title">Animated Sign Language GIF</h2>
+          <span id="gifSpinner" class="spinner hidden"></span>
+        </div>
+        <div class="card-body">
+          <div id="gifWrap" class="gif-wrap">
+            <div class="gif-placeholder">
+              <span class="gif-placeholder-icon">🤟</span>
+              <p>Run the pipeline to generate the sign language animation</p>
+            </div>
+          </div>
+          <div id="gifMeta" class="meta-line"></div>
+          <a id="downloadBtn" class="btn btn-secondary" download="sign_language.gif" hidden>
+            ⬇ Download GIF
+          </a>
+        </div>
+      </div>
+
+    </div><!-- /cards-grid -->
+
+    <!-- Log / error bar -->
+    <div id="logBar" class="log-bar hidden">
+      <span id="logMsg"></span>
+    </div>
+
+    <!-- Timing summary -->
+    <div id="timingBar" class="timing-bar hidden">
+      <span id="timingText"></span>
+    </div>
+
+  </main>
+
+  <footer class="footer">
+    <p>Pipeline: <strong>Canary ASR</strong> (German speech → text) + <strong>spoken-to-signed</strong> (text → gloss → pose) + <strong>pose_format</strong> (pose → GIF)</p>
+    <p class="footer-sub">Powered by NVIDIA Canary · Sign Language Processing · Marian NMT</p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
