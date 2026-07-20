@@ -3,13 +3,13 @@
 pipeline_cli.py — Command-line runner for the full pipeline.
 
 Usage examples:
-  # Full pipeline: audio file → GIF
+  # Full pipeline: audio file -> GIF
   python pipeline_cli.py --audio speech.wav --gif output.gif
 
   # Just transcribe (step 1 only)
   python pipeline_cli.py --audio speech.wav --step asr
 
-  # From text (skip ASR, go text → gloss → GIF)
+  # From text (skip ASR, go text -> gloss -> GIF)
   python pipeline_cli.py --text "Guten Morgen!" --gif output.gif
 
   # Use a different glosser
@@ -164,13 +164,13 @@ def step_gloss_gif(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="German Speech → Sign Language Pipeline",
+        description="German Speech -> Sign Language Pipeline",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
 
     input_group = parser.add_mutually_exclusive_group(required=True)
-    input_group.add_argument("--audio", type=Path, help="Input audio file (wav/mp3/flac…)")
+    input_group.add_argument("--audio", type=Path, help="Input audio file (wav/mp3/flac/m4a)")
     input_group.add_argument("--text",  type=str,  help="German text (skip ASR)")
 
     parser.add_argument("--gif",            type=Path, default=Path("output.gif"), help="Output GIF path (default: output.gif)")
@@ -203,7 +203,7 @@ def main():
             print("ERROR: ASR returned empty transcript.", file=sys.stderr)
             sys.exit(1)
         if args.step == "asr":
-            print(f"\n✓ Transcript: {text}")
+            print(f"\n[OK] Transcript: {text}")
             return
 
     # Steps 2+3: Gloss + GIF
@@ -223,12 +223,12 @@ def main():
     )
 
     elapsed = time.perf_counter() - t_start
-    print(f"\n{'─'*60}")
-    print(f"✓ Pipeline complete in {elapsed:.1f}s")
+    print(f"\n{'='*60}")
+    print(f"[OK] Pipeline complete in {elapsed:.1f}s")
     print(f"  Transcript : {text}")
     print(f"  Gloss      : {' '.join(tokens)}")
     print(f"  GIF saved  : {gif_path}")
-    print(f"{'─'*60}")
+    print(f"{'='*60}")
 
 
 if __name__ == "__main__":
