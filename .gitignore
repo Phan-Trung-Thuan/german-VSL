@@ -28,14 +28,6 @@ build/
 .env
 .env.*
 
-# Audio samples / test files
-*.mp3
-*.wav
-*.flac
-*.m4a
-*.ogg
-*.webm
-
 # OS files
 .DS_Store
 Thumbs.db
