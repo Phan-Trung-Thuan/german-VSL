@@ -64,15 +64,23 @@ def module4(
     tokens = gloss.gloss_tokens if isinstance(gloss, GlossResult) else list(gloss)
 
     _print_header("Module 4 — Gloss Tokens → Video Clips")
-    print(f"  Tokens   : {tokens}")
+    print(f"  Tokens to resolve: {len(tokens)}")
 
     out_dir = Path(_out_dir) if _out_dir else Path(tempfile.mkdtemp(prefix="m4_"))
     out_dir.mkdir(parents=True, exist_ok=True)
 
     clips:   list[TokenClip] = []
     missing: list[str]       = []
+    found_tokens: list[str]  = []
 
-    for tok in tokens:
+    # Import tqdm dynamically
+    try:
+        from tqdm.auto import tqdm
+        token_iter = tqdm(tokens, desc="Resolving signs", leave=True)
+    except ImportError:
+        token_iter = tokens
+
+    for tok in token_iter:
         tc = None
         if lexicon:
             tc = _resolve_token(tok, lexicon, out_dir, clip_duration_s)
@@ -91,23 +99,29 @@ def module4(
         if tc is None or not tc.found:
             tc = TokenClip(token=tok, video_path=None, clip_path=None, found=False)
             missing.append(tok)
-        
-        clips.append(tc)
-        if tc.found:
-            context = _format_context(tc)
-            print(f"  [{tok:<20}] ✓  video: {tc.video_path.name}")
-            if context:
-                print(f"               gloss context: {context}")
         else:
-            print(f"  [{tok:<20}] ✗  not found in lexicon")
+            clips.append(tc)
+            found_tokens.append(tok)
 
+    # Re-insert failed lookup placeholders in output order
+    # (reconstructing complete list matching input tokens list)
+    full_clips = []
+    missing_set = set(missing)
+    found_idx = 0
+    for tok in tokens:
+        if tok in missing_set:
+            full_clips.append(TokenClip(token=tok, video_path=None, clip_path=None, found=False))
+        else:
+            # Match back
+            full_clips.append(next(c for c in clips if c.token == tok))
 
-    found_n = sum(1 for c in clips if c.found)
-    print(f"\n  Found  : {found_n} / {len(tokens)}")
-    if missing:
-        print(f"  Missing: {missing}")
+    found_n = len(found_tokens)
+    print(f"\n  [Module 4 Summary]")
+    print(f"    Total Tokens  : {len(tokens)}")
+    print(f"    Resolved      : {found_n}  {sorted(list(set(found_tokens)))}")
+    print(f"    Missing/Failed: {len(set(missing))}  {sorted(list(set(missing)))}")
 
-    return LookupResult(clips=clips, found_count=found_n, missing_tokens=missing)
+    return LookupResult(clips=full_clips, found_count=found_n, missing_tokens=list(set(missing)))
 
 
 # ── Private helpers ──────────────────────────────────────────────────────────

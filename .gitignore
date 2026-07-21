@@ -31,3 +31,9 @@ build/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Signdict & Video Artifacts
+signdict/signdict_videos/
+signdict_skeletons/
+skeletons/
+videos/

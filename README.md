@@ -41,20 +41,22 @@ Open `http://127.0.0.1:8000` in your browser.
 
 **First run** will download the Canary-1B model (~4GB). After that it's instant.
 
-### 3. Use the CLI
+### 3. Use the CLI & Scripts
+
+All executable scripts are located in the `scripts/` folder:
 
 ```powershell
-# Full pipeline: audio → GIF
-python pipeline_cli.py --audio path/to/speech.wav --gif output.gif
+# Run Speech-to-Sign CLI pipeline
+python scripts/pipeline_cli.py --audio path/to/speech.wav --gif output.gif
 
-# From text (skip ASR)
-python pipeline_cli.py --text "Guten Morgen!" --gif output.gif
+# Batch-download SignDict videos & build local vocabulary mapping
+python scripts/prepare_local_library.py
 
-# Just ASR (no GIF)
-python pipeline_cli.py --audio speech.wav --step asr
+# Extract Whole-Body 2D skeleton MP4s & keypoint JSON files
+python scripts/extract_skeletons.py
 
-# Use a different sign language
-python pipeline_cli.py --audio speech.wav --gif output.gif --signed-language gsg
+# Fine-tune Text-to-Gloss Seq2Seq baseline model
+python scripts/train_t2g.py --base_path /path/to/annotations
 ```
 
 ## Environment variables

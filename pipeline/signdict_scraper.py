@@ -29,9 +29,10 @@ class SignDictScraper:
     """
     BASE_URL = "https://signdict.org"
 
-    def __init__(self, output_dir: str | Path = "signdict_videos"):
+    def __init__(self, output_dir: str | Path = "signdict_videos", verbose: bool = False):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.verbose = verbose
         # In-memory mapping: gloss -> video_path
         self.downloaded_cache: dict[str, Path] = {}
         self._scan_existing()
@@ -40,6 +41,10 @@ class SignDictScraper:
         """Scan the output folder for already downloaded videos."""
         for p in self.output_dir.glob("*.mp4"):
             self.downloaded_cache[p.stem.upper()] = p
+
+    def _log(self, msg: str) -> None:
+        if self.verbose:
+            print(msg)
 
     def get_sign_url(self, word: str) -> Optional[str]:
         """
@@ -54,7 +59,7 @@ class SignDictScraper:
             with urllib.request.urlopen(req, timeout=10) as response:
                 html = response.read().decode("utf-8")
         except Exception as e:
-            print(f"  [SignDict Scraper] Error fetching search page for '{word}': {e}")
+            self._log(f"  [SignDict Scraper] Error fetching search page for '{word}': {e}")
             return None
 
         # Check if we were redirected directly to an entry page
@@ -77,7 +82,7 @@ class SignDictScraper:
                 detail_html = response.read().decode("utf-8")
                 return self._extract_video_url(detail_html)
         except Exception as e:
-            print(f"  [SignDict Scraper] Error fetching detail page '{detail_url}': {e}")
+            self._log(f"  [SignDict Scraper] Error fetching detail page '{detail_url}': {e}")
 
         return None
 
@@ -100,6 +105,28 @@ class SignDictScraper:
 
         return None
 
+    # Direct mapping for common weather forecast translation discrepancies
+    FALLBACK_MAP = {
+        "HEUTIG": "HEUTE",
+        "ERWARTEN": "ERWARTET",
+        "ZWEITEILEN": "TEILEN",
+        "SCHAUFELN": "WECHSELN",  # close replacement
+        "VORDERSEITE": "VORNE",
+        "FEUCHTEN": "FEUCHT",
+        "ZUSAMMENSCHWIMMEN": "ZUSAMMEN",
+        "TIEFZERRHÖRNERN": "TIEF",
+        "BEREITS": "BEREIT",
+        "VORMITTAGSSTUNDE": "VORMITTAG",
+        "PASSIERT": "PASSIEREN",
+        "ENTWICKELT": "ENTWICKELN",
+        "VORABINFORMATION": "INFORMATION",
+        "GELTEN": "GILT",
+        "WETTERBERUHIGUNG": "WETTER",
+        "WIEDERSEHEN": "AUF WIEDERSEHEN",
+        "WETTERDIENST": "WETTER",
+        "KLIMA": "WETTER",
+    }
+
     def get_sign(self, gloss: str, delay_s: float = 0.5) -> Optional[Path]:
         """
         Get the video path for a gloss. If not downloaded yet, search SignDict,
@@ -113,15 +140,43 @@ class SignDictScraper:
         if clean_gloss in self.downloaded_cache:
             return self.downloaded_cache[clean_gloss]
 
-        print(f"  [SignDict] Searching for '{clean_gloss}'...")
-        video_url = self.get_sign_url(clean_gloss)
+        # ── Fallback Cascade ──────────────────────────────────────────
+        candidates = [clean_gloss]
+        
+        # 1. Check manual mapping dict
+        if clean_gloss in self.FALLBACK_MAP:
+            candidates.append(self.FALLBACK_MAP[clean_gloss])
+            
+        # 2. General suffix/grammar heuristics
+        if clean_gloss.endswith("IG"):
+            candidates.append(clean_gloss[:-2] + "E")
+        if clean_gloss.endswith("T"):
+            candidates.append(clean_gloss[:-1] + "EN")
+        if clean_gloss.endswith("EN"):
+            candidates.append(clean_gloss[:-2])
+            
+        # 3. Weather compound splits
+        if clean_gloss.startswith("WETTER") and len(clean_gloss) > 6:
+            candidates.append("WETTER")
+            
+        video_url = None
+        resolved_gloss = clean_gloss
+        
+        # Try candidates in order
+        for cand in candidates:
+            self._log(f"  [SignDict] Searching for '{cand}'...")
+            video_url = self.get_sign_url(cand)
+            if video_url:
+                resolved_gloss = cand
+                break
+
         if not video_url:
-            print(f"  [SignDict] Gloss '{clean_gloss}' not found.")
+            self._log(f"  [SignDict] Gloss '{clean_gloss}' not found.")
             return None
 
         # Build local target file path
         target_path = self.output_dir / f"{clean_gloss}.mp4"
-        print(f"  [SignDict] Downloading {video_url} -> {target_path} ...")
+        self._log(f"  [SignDict] Downloading {video_url} -> {target_path} ...")
 
         try:
             req = urllib.request.Request(video_url, headers={"User-Agent": "Mozilla/5.0"})
@@ -136,7 +191,7 @@ class SignDictScraper:
             time.sleep(delay_s)  # Respect server rate limits
             return target_path
         except Exception as e:
-            print(f"  [SignDict] Failed to download video for '{clean_gloss}': {e}")
+            self._log(f"  [SignDict] Failed to download video for '{clean_gloss}': {e}")
             if target_path.exists():
                 target_path.unlink()
         return None
