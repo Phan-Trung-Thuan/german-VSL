@@ -23,6 +23,7 @@ Usage
 
 from .types   import AudioResult, ASRResult, GlossResult, TokenClip, LookupResult, GIFResult
 from .lexicon import PhoenixLexicon
+from .signdict_scraper import SignDictScraper
 from .module1 import module1
 from .module2 import module2
 from .module3 import module3
@@ -36,8 +37,10 @@ __all__ = [
     "TokenClip", "LookupResult", "GIFResult",
     # lexicon
     "PhoenixLexicon",
+    "SignDictScraper",
     # modules
     "module1", "module2", "module3", "module4", "module5",
     # helpers
     "display_gif", "run_pipeline", "evaluate_example",
 ]
+

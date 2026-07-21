@@ -35,23 +35,27 @@ from typing import Optional, Union
 
 from .types   import GlossResult, LookupResult, TokenClip
 from .lexicon import PhoenixLexicon
+from .signdict_scraper import SignDictScraper
 
 
 def module4(
     gloss:           Union[GlossResult, list[str]],
-    lexicon:         PhoenixLexicon,
+    lexicon:         Optional[PhoenixLexicon] = None,
     clip_duration_s: float = 2.0,
     _out_dir:        Optional[str | Path] = None,
+    scraper:         Optional[SignDictScraper] = None,
 ) -> LookupResult:
     """
     Look up each gloss token in the Phoenix14T lexicon and extract a clip.
+    If the token is missing and a scraper is provided, downloads it from SignDict.org.
 
     Parameters
     ----------
     gloss           : GlossResult from module3, OR a list of uppercase token strings
-    lexicon         : PhoenixLexicon instance (build once and reuse)
+    lexicon         : PhoenixLexicon instance (optional if scraper is provided)
     clip_duration_s : how many seconds to trim from the matched video
     _out_dir        : directory for clip files  (default: system temp)
+    scraper         : SignDictScraper instance for downloading missing isolated signs
 
     Returns
     -------
@@ -69,15 +73,34 @@ def module4(
     missing: list[str]       = []
 
     for tok in tokens:
-        tc = _resolve_token(tok, lexicon, out_dir, clip_duration_s)
+        tc = None
+        if lexicon:
+            tc = _resolve_token(tok, lexicon, out_dir, clip_duration_s)
+        
+        # Fallback to SignDict scraper if not found in local dataset
+        if (tc is None or not tc.found) and scraper is not None:
+            scraped_path = scraper.get_sign(tok)
+            if scraped_path:
+                tc = TokenClip(
+                    token=tok,
+                    video_path=scraped_path,
+                    clip_path=scraped_path, # isolated sign, no trim needed
+                    found=True
+                )
+
+        if tc is None or not tc.found:
+            tc = TokenClip(token=tok, video_path=None, clip_path=None, found=False)
+            missing.append(tok)
+        
         clips.append(tc)
         if tc.found:
             context = _format_context(tc)
             print(f"  [{tok:<20}] ✓  video: {tc.video_path.name}")
-            print(f"               gloss context: {context}")
+            if context:
+                print(f"               gloss context: {context}")
         else:
             print(f"  [{tok:<20}] ✗  not found in lexicon")
-            missing.append(tok)
+
 
     found_n = sum(1 for c in clips if c.found)
     print(f"\n  Found  : {found_n} / {len(tokens)}")
