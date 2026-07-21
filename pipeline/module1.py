@@ -180,6 +180,7 @@ def _download_youtube(url: str, out_dir: Path) -> Path:
         "--merge-output-format", "mp4",
         "--output", out_template,
         "--no-playlist",
+        "--extractor-args", "youtube:player-client=android,web",
         url,
     ]
     print(f"  [yt-dlp] Downloading {url} ...")
