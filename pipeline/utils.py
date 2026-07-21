@@ -20,6 +20,7 @@ from typing import Optional
 
 from .types   import AudioResult, ASRResult, GlossResult, LookupResult, GIFResult
 from .lexicon import PhoenixLexicon
+from .signdict_scraper import SignDictScraper
 from .module1 import module1
 from .module2 import module2
 from .module3 import module3
@@ -42,12 +43,13 @@ def display_gif(gif_path: str | Path) -> None:
 
 def run_pipeline(
     video_path:  str | Path,
-    lexicon:     PhoenixLexicon,
+    lexicon:     Optional[PhoenixLexicon] = None,
     output_gif:  str | Path = "output.gif",
     asr_model:   str        = "nvidia/canary-1b",
     clip_duration_s: float  = 2.0,
     gif_fps:     int        = 10,
     gif_width:   int        = 320,
+    scraper:     Optional[SignDictScraper] = None,
 ) -> dict:
     """
     Run all 5 modules end to end and return all intermediate results.
@@ -61,8 +63,9 @@ def run_pipeline(
     o1 = module1(video_path)
     o2 = module2(o1, model_id=asr_model)
     o3 = module3(o2)
-    o4 = module4(o3, lexicon, clip_duration_s=clip_duration_s)
+    o4 = module4(o3, lexicon, clip_duration_s=clip_duration_s, scraper=scraper)
     o5 = module5(o4, output_gif, fps=gif_fps, width=gif_width)
+
 
     elapsed = time.perf_counter() - t0
     bar = "─" * 60
