@@ -104,9 +104,15 @@ def _load_model(model_id: str, use_cache: bool) -> object:
         model = nemo_asr.models.ASRModel.from_pretrained(model_name=model_id)
 
     import torch
+    device = "CPU"
     if torch.cuda.is_available():
-        model = model.cuda()
-        device = torch.cuda.get_device_name(0)
+        try:
+            model = model.cuda()
+            device = torch.cuda.get_device_name(0)
+        except Exception as e:
+            print(f"  [WARN] CUDA failed to initialize ({e}). Falling back to CPU mode.")
+            model = model.cpu()
+            device = "CPU"
     else:
         device = "CPU"
     model.eval()
