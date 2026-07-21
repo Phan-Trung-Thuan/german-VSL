@@ -63,6 +63,48 @@ class PhoenixLexicon:
 
         self._build_index()
 
+    @classmethod
+    def from_dataset(
+        cls,
+        dataset,                        # Phoenix14TDataset instance
+        videos_dir:          str | Path = "",
+        split:               str        = "train",
+        max_clips_per_token: int        = 5,
+    ) -> "PhoenixLexicon":
+        """
+        Build a PhoenixLexicon directly from a Phoenix14TDataset object.
+
+        This avoids needing a separate CSV file — the annotations are read
+        straight from the dataset's in-memory list (loaded from the .gzip
+        pickle files).
+
+        Parameters
+        ----------
+        dataset             : an instantiated Phoenix14TDataset
+        videos_dir          : root directory containing the video files
+                              (if empty, uses dataset.video_dir)
+        split               : split name for video path resolution
+        max_clips_per_token : keep at most this many video refs per token
+
+        Example
+        -------
+        lex = PhoenixLexicon.from_dataset(trainset, VIDEOS_DIR)
+        """
+        videos_dir = Path(videos_dir) if videos_dir else Path(dataset.video_dir)
+
+        # Create a bare instance without calling __init__
+        inst = cls.__new__(cls)
+        inst.csv_path    = Path("<from_dataset>")
+        inst.videos_dir  = videos_dir
+        inst.split       = split
+        inst.max_clips   = max_clips_per_token
+        inst.index       = {}
+        inst._all_examples = []
+
+        inst._build_index_from_annotations(dataset.annotations, videos_dir, split)
+        return inst
+
+
     # ── CSV loading ──────────────────────────────────────────────────
 
     def _load_csv(self) -> list[dict]:
@@ -114,7 +156,39 @@ class PhoenixLexicon:
         print(f"[PhoenixLexicon] Loading {self.csv_path.name} …")
         examples           = self._load_csv()
         self._all_examples = examples
+        self._index_examples(examples)
 
+    def _build_index_from_annotations(
+        self,
+        annotations: list[dict],
+        videos_dir:  Path,
+        split:       str,
+    ) -> None:
+        """
+        Build the index from a list of annotation dicts (from Phoenix14TDataset).
+
+        Each annotation dict must have 'name' and 'gloss' keys.
+        The 'text' key is optional.  Video paths are resolved by scanning
+        the common Phoenix14T directory patterns under *videos_dir*.
+        """
+        print(f"[PhoenixLexicon] Building index from {len(annotations)} annotations …")
+        examples = []
+        for anno in annotations:
+            name  = anno.get("name", "")
+            gloss = anno.get("gloss", "")
+            text  = anno.get("text", "")
+            if gloss:
+                examples.append({
+                    "name":  name,
+                    "gloss": gloss,
+                    "text":  text,
+                    "video": "",   # will be resolved by _resolve_video_path
+                })
+        self._all_examples = examples
+        self._index_examples(examples)
+
+    def _index_examples(self, examples: list[dict]) -> None:
+        """Shared indexing logic used by both _build_index and _build_index_from_annotations."""
         video_found = 0
         for ex in examples:
             vp     = self._resolve_video_path(ex)
@@ -144,12 +218,13 @@ class PhoenixLexicon:
         return self.index.get(token.upper(), [])
 
     def stats(self) -> str:
+        source = str(self.csv_path) if str(self.csv_path) != "<from_dataset>" else "Phoenix14TDataset (in-memory)"
         return (
             f"PhoenixLexicon\n"
-            f"  CSV        : {self.csv_path}\n"
-            f"  Videos dir : {self.videos_dir}\n"
-            f"  Split      : {self.split}\n"
-            f"  Examples   : {len(self._all_examples)}\n"
+            f"  Source       : {source}\n"
+            f"  Videos dir   : {self.videos_dir}\n"
+            f"  Split        : {self.split}\n"
+            f"  Examples     : {len(self._all_examples)}\n"
             f"  Unique tokens: {len(self.index)}"
         )
 
@@ -158,3 +233,4 @@ class PhoenixLexicon:
 
     def __len__(self) -> int:
         return len(self._all_examples)
+
